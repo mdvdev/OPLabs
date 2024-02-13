@@ -1,9 +1,9 @@
-#ifndef APPSTATE_H
-#define APPSTATE_H
+#ifndef APPDATA_H
+#define APPDATA_H
 
 struct AppData {
     int inputRadix;
     int outputRadix;
 };
 
-#endif // APPSTATE_H
+#endif // APPDATA_H
