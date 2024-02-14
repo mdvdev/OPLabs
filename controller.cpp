@@ -27,11 +27,11 @@ void processChangedInputLine(AppData* appData, const AppParams* params)
     Error validateRes = validateInput(appData, params->input);
     switch (validateRes) {
     case OutOfRange:
-        params->mainWindow->updateErrorLabel("Entered number out of range");
+        params->mainWindow->updateErrorLabel("Out of range");
         params->mainWindow->disableConvertButton();
         break;
     case InvalidChar:
-        params->mainWindow->updateErrorLabel("Entered number contains invalid character");
+        params->mainWindow->updateErrorLabel("Invalid char");
         params->mainWindow->disableConvertButton();
         break;
     case NoError:
