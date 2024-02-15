@@ -1,42 +1,21 @@
-#include <stdlib.h>
-
 #include "controller.h"
+#include "appdata.h"
 #include "domainlogic.h"
-#include "error.h"
-#include "mainwindow.h"
 
-void processConvertClick(AppData* appData, const AppParams* params)
+void processInput(Operation operation, AppData* appData, const AppParams* params)
 {
-    char* convertedInput = convertInput(appData, params->input);
-    params->mainWindow->updateOutputLine(convertedInput);
-    free(convertedInput);
-}
-
-void processOutputRadixSelect(AppData* appData, const AppParams* params)
-{
-    setOutputRadix(appData, params->radix);
-}
-
-void processInputRadixSelect(AppData* appData, const AppParams* params)
-{
-    setInputRadix(appData, params->radix);
-}
-
-void processChangedInputLine(AppData* appData, const AppParams* params)
-{
-    Error validateRes = validateInput(appData, params->input);
-    switch (validateRes) {
-    case OutOfRange:
-        params->mainWindow->updateErrorLabel("Out of range");
-        params->mainWindow->disableConvertButton();
+    switch (operation) {
+    case Convert:
+        convertInput(appData);
         break;
-    case InvalidChar:
-        params->mainWindow->updateErrorLabel("Invalid char");
-        params->mainWindow->disableConvertButton();
+    case SelectOutputRadix:
+        setOutputRadix(appData, params->radix);
         break;
-    case NoError:
-        params->mainWindow->updateErrorLabel("No errors");
-        params->mainWindow->enableConvertButton();
+    case SelectInputRadix:
+        setInputRadix(appData, params->radix);
+        break;
+    case EditInputLine:
+        setInput(appData, params->input);
         break;
     }
 }

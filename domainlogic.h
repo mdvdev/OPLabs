@@ -1,13 +1,12 @@
 #ifndef DOMAINLOGIC_H
 #define DOMAINLOGIC_H
 
-#include "error.h"
-
 struct AppData;
 
-char* convertInput(const AppData* appData, const char* input);
-Error validateInput(const AppData* appData, const char* input);
 void setInputRadix(AppData* appData, int radix);
 void setOutputRadix(AppData* appData, int radix);
+void setInput(AppData* appData, const char* input);
+void setOutput(AppData* appData, const char* output);
+void convertInput(AppData* appData);
 
 #endif // DOMAINLOGIC_H

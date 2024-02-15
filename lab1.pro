@@ -19,7 +19,8 @@ HEADERS += \
     controller.h \
     domainlogic.h \
     error.h \
-    mainwindow.h
+    mainwindow.h \
+    operation.h
 
 FORMS += \
     mainwindow.ui

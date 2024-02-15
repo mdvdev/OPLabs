@@ -4,7 +4,8 @@
 enum Error {
     NoError,
     OutOfRange,
-    InvalidChar
+    InvalidChar,
+    EmptyString
 };
 
 #endif // ERROR_H

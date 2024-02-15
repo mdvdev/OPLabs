@@ -5,8 +5,6 @@
 
 #include "appdata.h"
 
-class Presenter;
-
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
@@ -21,11 +19,6 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-    void updateErrorLabel(const char* error);
-    void updateOutputLine(const char* output);
-    void disableConvertButton();
-    void enableConvertButton();
-
 private slots:
     void onConvertClicked();
     void outputRadixSelected(int radix);
@@ -33,7 +26,16 @@ private slots:
     void inputLineChanged();
 
 private:
+    const char* errorCodeToString();
+    void updateErrorLabel();
+    void updateOutputLine();
+    void disableConvertButton();
+    void enableConvertButton();
+    void configureConvertButton();
+
     int convertIndexToRadix(int index);
+    void updateLabels();
+    void initAppData();
 
     Ui::MainWindow* ui;
     AppData appData;
