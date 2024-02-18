@@ -2,16 +2,16 @@
 #define APPDATA_H
 
 #include "error.h"
+#include "charvector.h"
 
-#define MAX_INPUT_LEN  32
-#define MAX_OUTPUT_LEN MAX_INPUT_LEN
+#define MAX_OUTPUT_LEN 32
 
 struct AppData {
     int inputRadix;
     int outputRadix;
-    char input[MAX_INPUT_LEN + 1];
-    char output[MAX_OUTPUT_LEN + 1];
     Error error;
+    CharVector input;
+    char output[MAX_OUTPUT_LEN + 1];
 };
 
 #endif // APPDATA_H

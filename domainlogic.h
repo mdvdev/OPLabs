@@ -6,7 +6,7 @@ struct AppData;
 void setInputRadix(AppData* appData, int radix);
 void setOutputRadix(AppData* appData, int radix);
 void setInput(AppData* appData, const char* input);
-void setOutput(AppData* appData, const char* output);
 void convertInput(AppData* appData);
+void swapInputToOutput(AppData* appData);
 
 #endif // DOMAINLOGIC_H

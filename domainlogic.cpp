@@ -3,24 +3,30 @@
 
 #include "domainlogic.h"
 #include "appdata.h"
+#include "lib.h"
 
 static int isOutOfRange(long long number)
 {
     return (number >> 32) != 0;
 }
 
-static int isValidChar(char c, int radix)
+static int getCharValue(char c)
 {
-    static char table[] = "0123456789ABCDEF";
-    for (int i = 0; i < (int) sizeof(table) && i < radix; ++i)
-        if (table[i] == c)
-            return true;
-    return false;
+    if (c >= '0' && c <= '9') {
+        return c - '0';
+    } else if (c >= 'A' && c <= 'F') {
+        return c - 'A' + 10;
+    } else if (c >= 'a' && c <= 'f') {
+        return c - 'a' + 10;
+    } else {
+        return -1;
+    }
 }
 
-static int isEmptyString(const char* string)
+static int isValidChar(char c, int radix)
 {
-    return *string == '\0';
+    int charValue = getCharValue(c);
+    return charValue == -1 || charValue >= radix ? false : true;
 }
 
 static Error stringToInteger(const char* string, int radix, int* result)
@@ -45,7 +51,7 @@ static Error stringToInteger(const char* string, int radix, int* result)
             error = InvalidChar;
             break;
         }
-        accumulator = accumulator * radix + string[i] - '0';
+        accumulator = accumulator * radix + getCharValue(string[i]);
         if (isOutOfRange(accumulator)) {
             error = OutOfRange;
             break;
@@ -64,7 +70,7 @@ static Error validateInput(const char* input, int radix)
     return stringToInteger(input, radix, NULL);
 }
 
-static void swapChars(char* a, char* b)
+static void swapChar(char* a, char* b)
 {
     char c = *a;
     *a = *b;
@@ -74,17 +80,63 @@ static void swapChars(char* a, char* b)
 static void reverseString(char* string)
 {
     for (int i = 0, j = strlen(string) - 1; i < j; ++i, --j) {
-        swapChars(string + i, string + j);
+        swapChar(string + i, string + j);
     }
 }
 
-static void integerToString(int number, int radix, char* string)
+static int getHexBaseCode(int number)
+{
+    if (number >= 10 && number <= 15) {
+        return 'A';
+    } else {
+        return -1;
+    }
+}
+
+static int getDecimalBaseCode(int number)
+{
+    if (number >= 0 && number <= 9) {
+        return '0';
+    } else {
+        return -1;
+    }
+}
+
+static int getBaseCode(int number)
+{
+    if (number >= 0 && number <= 9) {
+        return getDecimalBaseCode(number);
+    } else if (number >= 10 && number <= 15) {
+        return getHexBaseCode(number);
+    } else {
+        return -1;
+    }
+}
+
+static int transformRemainder(int remainder)
+{
+    if (remainder >= 0 && remainder <= 9) {
+        return remainder;
+    } else if (remainder >= 10 && remainder <= 15) {
+        return remainder - 10;
+    } else {
+        return -1;
+    }
+}
+
+static char* integerToString(int number, int radix, char* string)
 {
     int i = 0;
     unsigned num = radix == 10 && number < 0 ?
                     ~number + 1 : number;
     do {
-        string[i++] = num % radix + '0';
+        unsigned remainder = num % radix;
+        int transformedRemainder = transformRemainder(remainder);
+        int baseCode = getBaseCode(remainder);
+        if (transformedRemainder == -1 || baseCode == -1) {
+            return NULL;
+        }
+        string[i++] = transformedRemainder + baseCode;
         num /= radix;
     } while (num != 0);
 
@@ -94,12 +146,55 @@ static void integerToString(int number, int radix, char* string)
 
     string[i] = '\0';
     reverseString(string);
+
+    return string;
+}
+
+static void swapInt(int* a, int* b)
+{
+    int c = *a;
+    *a = *b;
+    *b = c;
+}
+
+static void swapRadix(int* a, int* b)
+{
+    swapInt(a, b);
+}
+
+static void swapString(char* a, char* b)
+{
+    size_t i;
+
+    for (i = 0; a[i] && b[i]; ++i) {
+        swapChar(a + i, b + i);
+    }
+    if (b[i]) {
+        int j = i;
+        for (; b[i]; ++i) {
+            a[i] = b[i];
+        }
+        a[i] = '\0';
+        b[j] = '\0';
+    } else if (a[i]) {
+        int j = i;
+        for (; a[i]; ++i) {
+            b[i] = a[i];
+        }
+        b[i] = '\0';
+        a[j] = '\0';
+    }
+}
+
+static void performInputSwap(char* input, char* output)
+{
+    swapString(input, output);
 }
 
 void convertInput(AppData* appData)
 {
     int convertedInput;
-    appData->error = stringToInteger(appData->input, appData->inputRadix, &convertedInput);
+    appData->error = stringToInteger(appData->input.begin, appData->inputRadix, &convertedInput);
     if (appData->error == NoError) {
         integerToString(convertedInput, appData->outputRadix, appData->output);
     }
@@ -108,26 +203,26 @@ void convertInput(AppData* appData)
 void setInputRadix(AppData* appData, int radix)
 {
     appData->inputRadix = radix;
-    appData->error = validateInput(appData->input, appData->inputRadix);
+    appData->error = validateInput(appData->input.begin, appData->inputRadix);
 }
 
 void setOutputRadix(AppData* appData, int radix)
 {
     appData->outputRadix = radix;
-    appData->error = validateInput(appData->input, appData->inputRadix);
+    appData->error = validateInput(appData->input.begin, appData->inputRadix);
 }
 
 void setInput(AppData* appData, const char* input)
 {
-    appData->error = validateInput(input, appData->inputRadix);
-    if (appData->error == NoError) {
-        strncpy(appData->input, input, sizeof(appData->input) - 1);
-        appData->input[sizeof(appData->input) - 1] = '\0';
-    }
+    assignCharVector(&appData->input, input);
+    appData->error = validateInput(appData->input.begin, appData->inputRadix);
 }
 
-void setOutput(AppData* appData, char* output)
+void swapInputToOutput(AppData* appData)
 {
-    strncpy(appData->output, output, sizeof(appData->output) - 1);
-    appData->output[sizeof(appData->output) - 1] = '\0';
+    appData->error = validateInput(appData->input.begin, appData->inputRadix);
+    if (appData->error == NoError) {
+        swapRadix(&appData->inputRadix, &appData->outputRadix);
+        performInputSwap(appData->input.begin, appData->output);
+    }
 }

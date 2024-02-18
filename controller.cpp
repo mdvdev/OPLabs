@@ -8,6 +8,11 @@ void processInput(Operation operation, AppData* appData, const AppParams* params
     case Convert:
         convertInput(appData);
         break;
+    case Swap:
+        swapInputToOutput(appData);
+        break;
+    case CopyOutput:
+        break;
     case SelectOutputRadix:
         setOutputRadix(appData, params->radix);
         break;

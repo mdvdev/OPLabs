@@ -3,6 +3,8 @@
 
 enum Operation {
     Convert,
+    Swap,
+    CopyOutput,
     SelectOutputRadix,
     SelectInputRadix,
     EditInputLine

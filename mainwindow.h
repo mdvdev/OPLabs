@@ -21,23 +21,38 @@ public:
 
 private slots:
     void onConvertClicked();
+    void onSwapClicked();
+    void onCopyClicked();
     void outputRadixSelected(int radix);
     void inputRadixSelected(int radix);
     void inputLineChanged();
 
 private:
-    const char* errorCodeToString();
+    void updateLabels();
     void updateErrorLabel();
     void updateOutputLine();
+    void updateInputLine();
+    void updateInputRadix();
+    void updateOutputRadix();
+
     void disableConvertButton();
     void enableConvertButton();
+    void disableSwapButton();
+    void enableSwapButton();
+
+    void configureButtons();
+    void configureSwapButton();
     void configureConvertButton();
 
     int convertIndexToRadix(int index);
-    void updateLabels();
+    int convertRadixToIndex(int radix);
+
+    const char* errorCodeToString();
+
     void initAppData();
 
     Ui::MainWindow* ui;
     AppData appData;
+    static int radixArray[];
 };
 #endif // MAINWINDOW_H
