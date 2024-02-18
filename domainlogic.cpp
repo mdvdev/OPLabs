@@ -86,20 +86,12 @@ static void reverseString(char* string)
 
 static int getHexBaseCode(int number)
 {
-    if (number >= 10 && number <= 15) {
-        return 'A';
-    } else {
-        return -1;
-    }
+    return number >= 10 && number <= 15 ? 'A' : -1;
 }
 
 static int getDecimalBaseCode(int number)
 {
-    if (number >= 0 && number <= 9) {
-        return '0';
-    } else {
-        return -1;
-    }
+    return number >= 0 && number <= 9 ? '0' : -1;
 }
 
 static int getBaseCode(int number)
