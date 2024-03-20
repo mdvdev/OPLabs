@@ -9,25 +9,29 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
-    charvector.cpp \
-    controller.cpp \
-    domainlogic.cpp \
-    lib.cpp \
-    main.cpp \
-    mainwindow.cpp
+    src/CsvParser.cpp \
+    src/List.cpp \
+    src/Model.cpp \
+    src/Presenter.cpp \
+    src/String.cpp \
+    src/main.cpp \
+    src/MainWindow.cpp
 
 HEADERS += \
-    appdata.h \
-    charvector.h \
-    controller.h \
-    domainlogic.h \
-    error.h \
-    lib.h \
-    mainwindow.h \
-    operation.h
+    include/AppData.h \
+    include/CsvParser.h \
+    include/Error.h \
+    include/List.h \
+    include/MainWindow.h \
+    include/Model.h \
+    include/Operation.h \
+    include/Presenter.h \
+    include/String.h
 
 FORMS += \
-    mainwindow.ui
+    MainWindow.ui
+
+INCLUDEPATH += $$PWD/include
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
