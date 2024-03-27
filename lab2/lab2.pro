@@ -24,9 +24,9 @@ HEADERS += \
     include/List.h \
     include/MainWindow.h \
     include/Model.h \
+    include/MyString.h \
     include/Operation.h \
-    include/Presenter.h \
-    include/String.h
+    include/Presenter.h
 
 FORMS += \
     MainWindow.ui

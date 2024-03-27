@@ -20,31 +20,58 @@ static int strToInt(const char* str, int* n)
     return sscanf(str, "%d", n) == 1;
 }
 
-static Error setInitValAccumulator(const CsvRecordCollection* collection,
-                                 const char* region,
-                                 int columnNo, float* accum, int* startPos)
+static char* floatToString(float n)
+{
+    int len = snprintf(NULL, 0, "%.2f", n);
+    char* result = (char*) malloc(len + 1);
+
+    if (!result) {
+        return NULL;
+    }
+
+    snprintf(result, len + 1, "%.2f", n);
+
+    return result;
+}
+
+static char* intToString(int n)
+{
+    int len = snprintf(NULL, 0, "%d", n);
+    char* result = (char*) malloc(len + 1);
+
+    if (!result) {
+        return NULL;
+    }
+
+    snprintf(result, len + 1, "%d", n);
+
+    return result;
+}
+
+static Error minMaxSetInitVal(AppData* appData, int columnNo, float* min, float* max, int* startPos)
 {
     const CsvRecord* record = NULL;
-    int collectionSize = sizeCsvRecordCollection(collection);
-    int columnCount = getColumnCountCsvRecordCollection(collection);
+    int collectionSize = sizeCsvRecordCollection(appData->records);
+    int columnCount = getColumnCountCsvRecordCollection(appData->records);
 
     for (int i = 1; i < collectionSize; ++i) {
-        record = getRecordCsvRecordCollection(collection, i);
+        record = getRecordCsvRecordCollection(appData->records, i);
         const char* recordRegion = getFieldCsvRecord(record, 1);
         if (!recordRegion) {
             continue;
         }
         if (isValidCsvRecord(record, columnCount) &&
-            (strcmp(region, "") == 0 ||
-            strcmp(region, recordRegion) == 0))
+            (strcmp(appData->region.begin, "") == 0 ||
+            strcmp(appData->region.begin, recordRegion) == 0))
         {
             const char* field = getFieldCsvRecord(record, columnNo - 1);
             if (!field) {
                 continue;
             }
-            if (!strToFloat(field, accum)) {
+            if (!strToFloat(field, min)) {
                 return INVALID_FIELD_ERROR;
             }
+            *max = *min;
             *startPos = i;
             return NO_ERROR;
         }
@@ -53,14 +80,13 @@ static Error setInitValAccumulator(const CsvRecordCollection* collection,
     return REGION_NOT_EXIST;
 }
 
-static Error processField(const CsvRecordCollection* collection,
-                          const char* region,
+static Error processField(AppData* appData,
                           int columnNo,
-                          float* accum, int pos,
-                          void (*callback)(float*, float))
+                          float* min, float* max,
+                          int pos)
 {
-    const CsvRecord* record = getRecordCsvRecordCollection(collection, pos);
-    int columnCount = getColumnCountCsvRecordCollection(collection);
+    const CsvRecord* record = getRecordCsvRecordCollection(appData->records, pos);
+    int columnCount = getColumnCountCsvRecordCollection(appData->records);
 
     if (!isValidCsvRecord(record, columnCount)) {
         return SKIP_RECORD_ERROR;
@@ -76,44 +102,56 @@ static Error processField(const CsvRecordCollection* collection,
         return INVALID_FIELD_ERROR;
     }
 
-    if (strcmp(region, "") == 0 ||
-        strcmp(region, getFieldCsvRecord(record, 1)) == 0)
+    if (strcmp(appData->region.begin, "") == 0 ||
+        strcmp(appData->region.begin, getFieldCsvRecord(record, 1)) == 0)
     {
-        callback(accum, num);
+        if (num > *max) {
+            *max = num;
+        } else if (num < *min) {
+            *min = num;
+        }
     }
 
     return NO_ERROR;
 }
 
-static Error mapCsvRecordCollection(const CsvRecordCollection* collection,
-                                  const char* column,
-                                  const char* region,
-                                  void (*callback)(float*, float),
-                                  float* n)
+static void toStringMinMax(AppData* appData, float min, float max)
 {
-    if (!collection || !column || !callback || strcmp(column, "") == 0 || !n) {
+    char* minStr = floatToString(min);
+    char* maxStr = floatToString(max);
+
+    assignString(&appData->min, minStr);
+    assignString(&appData->max, maxStr);
+
+    free(minStr);
+    free(maxStr);
+}
+
+static Error calcMinMax(AppData* appData)
+{
+    if (!appData || strcmp(appData->column.begin, "") == 0) {
         return INVALID_COLUMN_ERROR;
     }
 
-    int columnCount = getColumnCountCsvRecordCollection(collection);
+    int columnCount = getColumnCountCsvRecordCollection(appData->records);
     int columnNo;
 
-    if (!strToInt(column, &columnNo) || columnNo > columnCount || columnNo <= 0) {
+    if (!strToInt(appData->column.begin, &columnNo) || columnNo > columnCount || columnNo <= 0) {
         return INVALID_COLUMN_ERROR;
     }
 
-    float accum;
     int startPos;
-
+    float min, max;
     Error error;
-    if ((error = setInitValAccumulator(collection, region, columnNo, &accum, &startPos)) != NO_ERROR) {
+
+    if ((error = minMaxSetInitVal(appData, columnNo, &min, &max, &startPos)) != NO_ERROR) {
         return error;
     }
 
-    int collectionSize = sizeCsvRecordCollection(collection);
+    int collectionSize = sizeCsvRecordCollection(appData->records);
 
     for (int i = startPos; i < collectionSize; ++i) {
-        if ((error = processField(collection, region, columnNo, &accum, i, callback)) != NO_ERROR) {
+        if ((error = processField(appData, columnNo, &min, &max, i)) != NO_ERROR) {
             if (error == SKIP_RECORD_ERROR) {
                 continue;
             }
@@ -121,45 +159,9 @@ static Error mapCsvRecordCollection(const CsvRecordCollection* collection,
         }
     }
 
-    *n = accum;
+    toStringMinMax(appData, min, max);
 
     return NO_ERROR;
-}
-
-static char* floatToString(float n)
-{
-    int len = snprintf(NULL, 0, "%.2f", n);
-    char* result = (char*) malloc(len + 1);
-
-    if (!result) {
-        return NULL;
-    }
-
-    snprintf(result, len + 1, "%.2f", n);
-
-    return result;
-}
-
-static void minCallback(float* accum, float n)
-{
-    if (!accum) {
-        return;
-    }
-
-    if (n < *accum) {
-        *accum = n;
-    }
-}
-
-static void maxCallback(float* accum, float n)
-{
-    if (!accum) {
-        return;
-    }
-
-    if (n > *accum) {
-        *accum = n;
-    }
 }
 
 static int floatComparator(const char* a, const char* b)
@@ -193,74 +195,86 @@ static int isValidFloatField(const char* a)
     return strToFloat(a, &tempA);
 }
 
-static void calcMinimum(AppData* appData)
+static Error calcMedian(AppData* appData)
 {
-    float min;
-    if ((appData->error = mapCsvRecordCollection(appData->records,
-                                        appData->column.begin,
-                                        appData->region.begin,
-                                        minCallback, &min)) != NO_ERROR)
-    {
-        if (appData->error == REGION_NOT_EXIST) {
-            assignString(&appData->min, "");
-        }
-        return;
-    }
-
-    char* res = floatToString(min);
-    assignString(&appData->min, res);
-    free(res);
-}
-
-static void calcMaximum(AppData* appData)
-{
-    float max;
-    if ((appData->error = mapCsvRecordCollection(appData->records,
-                                        appData->column.begin,
-                                        appData->region.begin,
-                                        maxCallback, &max)) != NO_ERROR)
-    if (appData->error != NO_ERROR) {
-        if (appData->error == REGION_NOT_EXIST) {
-            assignString(&appData->max, "");
-        }
-        return;
-    }
-
-    char* res = floatToString(max);
-    assignString(&appData->max, res);
-    free(res);
-}
-
-static void calcMedian(AppData* appData)
-{
-    if (!appData) {
-        return;
+    if (!appData || strcmp(appData->column.begin, "") == 0) {
+        return INVALID_COLUMN_ERROR;
     }
 
     const CsvRecord* header = getRecordCsvRecordCollection(appData->records, 0);
     int columnCount = sizeCsvRecord(header);
-    int column;
+    int columnNo;
 
-    if (!strToInt(appData->column.begin, &column) || column >= columnCount || column <= 0) {
-        appData->error = INVALID_COLUMN_ERROR;
-        return;
+    if (!strToInt(appData->column.begin, &columnNo) || columnNo > columnCount || columnNo <= 0) {
+        return INVALID_COLUMN_ERROR;
     }
 
-    CsvRecordCollection* collectionCopy = (CsvRecordCollection*) copyCsvRecordCollection(appData->records);
-    if (!sortCsvRecordCollection(collectionCopy, column, floatComparator, isValidFloatField)) {
-        appData->error = INVALID_FIELD_ERROR;
-        destructCsvRecordCollection(collectionCopy);
-        free(collectionCopy);
-        return;
+    CsvRecordCollection* clearCollection = removeInvalidRecords(appData->records, columnNo);
+
+    if (!sortCsvRecordCollection(clearCollection, columnNo, floatComparator, isValidFloatField)) {
+        destructCsvRecordCollection(clearCollection);
+        free(clearCollection);
+        return INVALID_FIELD_ERROR;
     }
 
-    int middleIndex = (sizeCsvRecordCollection(collectionCopy) - 1) / 2;
-    CsvRecord* middleRecord = getRecordCsvRecordCollection(collectionCopy, middleIndex);
-    const char* field = getFieldCsvRecord(middleRecord, column);
+    int middleIndex = (sizeCsvRecordCollection(clearCollection) - 2) / 2;
+    CsvRecord* middleRecord = getRecordCsvRecordCollection(clearCollection, middleIndex);
+    const char* field = getFieldCsvRecord(middleRecord, columnNo - 1);
+
     assignString(&appData->median, field);
 
-    destructCsvRecordCollection(collectionCopy);
-    free(collectionCopy);
+    destructCsvRecordCollection(clearCollection);
+    free(clearCollection);
+
+    return NO_ERROR;
+}
+
+static int getErrorCount(AppData* appData)
+{
+    if (!appData) {
+        return 0;
+    }
+
+    int errorCount = 0;
+    int collectionSize = sizeCsvRecordCollection(appData->records);
+    int columnCount = getColumnCountCsvRecordCollection(appData->records);
+    for (int i = 0; i < collectionSize; ++i) {
+        const CsvRecord* record = getRecordCsvRecordCollection(appData->records, i);
+        if (!isValidCsvRecord(record, columnCount)) {
+            errorCount++;
+        }
+    }
+
+    return errorCount;
+}
+
+static void setErrors(AppData* appData)
+{
+    int errorCount = getErrorCount(appData);
+    int totalCount = sizeCsvRecordCollection(appData->records);
+    int validCount = totalCount - errorCount;
+
+    char* errorCountStr = intToString(errorCount);
+    char* totalCountStr = intToString(totalCount);
+    char* validCountStr = intToString(validCount);
+
+    assignString(&appData->errorCount, errorCountStr);
+    assignString(&appData->totalCount, totalCountStr);
+    assignString(&appData->validCount, validCountStr);
+
+    free(errorCountStr);
+    free(totalCountStr);
+    free(validCountStr);
+}
+
+static void resetMetrics(AppData* appData)
+{
+    if (!appData) {
+        return;
+    }
+    assignString(&appData->min, "");
+    assignString(&appData->max, "");
+    assignString(&appData->median, "");
 }
 
 void initAppData(AppData* appData)
@@ -272,6 +286,9 @@ void initAppData(AppData* appData)
     appData->error = NO_ERROR;
     appData->records = NULL;
 
+    constructString(&appData->errorCount, "");
+    constructString(&appData->totalCount, "");
+    constructString(&appData->validCount, "");
     constructString(&appData->fileName, "");
     constructString(&appData->region, "");
     constructString(&appData->column, "");
@@ -311,6 +328,8 @@ void loadCsvFile(AppData* appData)
     appData->records = parseCsv(fp);
     if (!appData->records) {
         appData->error = PARSE_CSV_ERROR;
+    } else {
+        setErrors(appData);
     }
 
     fclose(fp);
@@ -356,15 +375,12 @@ void calcMetrics(AppData* appData)
         return;
     }
 
-    calcMinimum(appData);
-    if (appData->error != NO_ERROR) {
+    if ((appData->error = calcMinMax(appData)) != NO_ERROR) {
+        resetMetrics(appData);
         return;
     }
 
-    calcMaximum(appData);
-    if (appData->error != NO_ERROR) {
-        return;
+    if ((appData->error = calcMedian(appData)) != NO_ERROR) {
+        resetMetrics(appData);
     }
-
-    //calcMedian(appData);
 }

@@ -1,5 +1,5 @@
-#ifndef STRING_H
-#define STRING_H
+#ifndef MYSTRING_H
+#define MYSTRING_H
 
 #include <stdlib.h>
 
@@ -13,4 +13,4 @@ void constructString(String* string, const char* s);
 void destructString(String* string);
 void assignString(String* string, const char* s);
 
-#endif // STRING_H
+#endif // MYSTRING_H

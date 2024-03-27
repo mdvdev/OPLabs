@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "String.h"
+#include "MyString.h"
 
 #define DEFAULT_CAPACITY_SIZE 100
 

@@ -304,13 +304,37 @@ void* copyCsvRecordCollection(const void* from)
     return to;
 }
 
+CsvRecordCollection* removeInvalidRecords(CsvRecordCollection* collection, int column)
+{
+    CsvRecordCollection* newCollection = (CsvRecordCollection*) malloc(sizeof(CsvRecordCollection));
+    if (!newCollection) {
+        return NULL;
+    }
+
+    constructCsvRecordCollection(newCollection);
+
+    int columnCount = getColumnCountCsvRecordCollection(collection);
+    int collectionSize = sizeCsvRecordCollection(collection);
+    for (int i = 0; i < collectionSize; ++i) {
+        CsvRecord* record = (CsvRecord*) copyCsvRecord(getRecordCsvRecordCollection(collection, i));
+        if (isValidCsvRecord(record, columnCount) && getFieldCsvRecord(record, column - 1)) {
+            pushCsvRecordCollection(newCollection, record);
+        } else {
+            destructCsvRecord(record);
+            free(record);
+        }
+    }
+
+    return newCollection;
+}
+
 CsvRecordCollection* sortCsvRecordCollection(CsvRecordCollection* collection,
-                             int column,
+                             int columnNo,
                              int (*compar)(const char*, const char*),
                              int (*isValidField)(const char*))
 {
 
-    if (!collection || column <= 0 || !compar) {
+    if (!collection || columnNo <= 0 || !compar) {
         return NULL;
     }
 
@@ -320,12 +344,8 @@ CsvRecordCollection* sortCsvRecordCollection(CsvRecordCollection* collection,
         for (int j = 1; j < i; ++j) {
             CsvRecord* rec1 = getRecordCsvRecordCollection(collection, j);
             CsvRecord* rec2 = getRecordCsvRecordCollection(collection, j + 1);
-            const char* field1 = getFieldCsvRecord(rec1, column);
-            const char* field2 = getFieldCsvRecord(rec2, column);
-
-            if (!rec1 || !rec2 || !field1 || !field2) {
-                return NULL;
-            }
+            const char* field1 = getFieldCsvRecord(rec1, columnNo - 1);
+            const char* field2 = getFieldCsvRecord(rec2, columnNo - 1);
 
             if (!isValidField(field1) || !isValidField(field2)) {
                 return NULL;

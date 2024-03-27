@@ -44,8 +44,6 @@ private:
     void fillTableWidget();
     void clearTableWidget();
 
-    int getErrorCount();
-
     int isRecordContainsEmptyField(const CsvRecord* record);
 };
 

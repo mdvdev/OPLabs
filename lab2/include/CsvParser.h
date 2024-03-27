@@ -20,6 +20,9 @@ CsvRecordCollection* parseCsv(FILE* fp);
 int isValidCsvRecord(const CsvRecord* record, int column);
 
 
+CsvRecordCollection* removeInvalidRecords(CsvRecordCollection* collection, int column);
+
+
 int getColumnCountCsvRecordCollection(const CsvRecordCollection* collection);
 
 

@@ -6,7 +6,6 @@
 #include "ui_MainWindow.h"
 
 #include "Presenter.h"
-#include "CsvParser.h"
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -34,6 +33,12 @@ MainWindow::~MainWindow()
     delete ui;
 
     destructCsvRecordCollection(appData.records);
+
+    destructString(&appData.errorCount);
+
+    destructString(&appData.totalCount);
+
+    destructString(&appData.validCount);
 
     destructString(&appData.fileName);
 
@@ -126,6 +131,10 @@ const char* MainWindow::getErrorMessage()
         return "Entered invalid column No.";
     case INVALID_FIELD_ERROR:
         return "CSV contains invalid field";
+    case REGION_NOT_EXIST:
+        return "Region not exist";
+    case SKIP_RECORD_ERROR:
+        return "";
     }
 }
 
@@ -141,7 +150,6 @@ void MainWindow::updateRegionLineEdit()
 
 void MainWindow::updateColumnLineEdit()
 {
-
     ui->columnLineEdit->setText(appData.column.begin);
 }
 
@@ -162,7 +170,7 @@ void MainWindow::updateMedianLineEdit()
 
 void MainWindow::updateTableWidget()
 {
-    if (appData.error != NO_ERROR || !appData.records) {
+    if (!appData.records) {
         return;
     }
 
@@ -179,12 +187,11 @@ void MainWindow::updateTableWidget()
 
 void MainWindow::displayInfoMessageBox()
 {
-    int errorCount = getErrorCount();
-    int totalCount = sizeCsvRecordCollection(appData.records);
-    int validCount = totalCount - errorCount;
-
     QString str;
-    str = QString("Errors: %1\nTotal: %2\nValid: %3").arg(errorCount).arg(totalCount).arg(validCount);
+    str = QString("Errors: %1\nTotal: %2\nValid: %3")
+              .arg(appData.errorCount.begin)
+              .arg(appData.totalCount.begin)
+              .arg(appData.validCount.begin);
 
     QMessageBox::information(this, "Info", str, QMessageBox::Ok);
 }
@@ -203,27 +210,6 @@ void MainWindow::addColumnHeaders(const CsvRecord* csvHeader, int columnCount)
     }
 
     ui->tableWidget->setHorizontalHeaderLabels(headers);
-}
-
-int MainWindow::getErrorCount()
-{
-    if (!appData.records) {
-        return 0;
-    }
-
-    const CsvRecord* csvHeader = getRecordCsvRecordCollection(appData.records, 0);
-    int columnCount = sizeCsvRecord(csvHeader);
-    int collectionSize = sizeCsvRecordCollection(appData.records);
-    int errorCount = 0;
-
-    for (int i = 1; i < collectionSize; ++i) {
-        const CsvRecord* record = getRecordCsvRecordCollection(appData.records, i);
-        if (!isValidCsvRecord(record, columnCount)) {
-            errorCount++;
-        }
-    }
-
-    return errorCount;
 }
 
 void MainWindow::fillTableWidget()
@@ -245,6 +231,7 @@ void MainWindow::fillTableWidget()
             for (int j = 0; j < columnCount; ++j) {
                 const char* field = getFieldCsvRecord(record, j);
                 QTableWidgetItem* item = new QTableWidgetItem(field);
+                item->setFlags(item->flags() & ~Qt::ItemIsEditable);
                 ui->tableWidget->setItem(ui->tableWidget->rowCount() - 1, j, item);
             }
         }
