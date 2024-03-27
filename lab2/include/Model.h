@@ -4,7 +4,10 @@
 struct AppData;
 
 void initAppData(AppData* appData);
-void saveFileName(AppData* appData, const char* fileName);
+void setFileName(AppData* appData, const char* fileName);
+void setRegion(AppData* appData, const char* region);
+void setColumn(AppData* appData, const char* column);
 void loadCsvFile(AppData* appData);
+void calcMetrics(AppData* appData);
 
 #endif // MODEL_H

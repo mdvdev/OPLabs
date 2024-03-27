@@ -17,24 +17,40 @@ struct CsvRecordCollection {
 CsvRecordCollection* parseCsv(FILE* fp);
 
 
-const CsvRecord* getRecordCsvRecordCollection(const CsvRecordCollection* collection, size_t pos);
-const char* getFieldCsvRecord(const CsvRecord* record, size_t pos);
+int isValidCsvRecord(const CsvRecord* record, int column);
 
 
-size_t sizeCsvRecordCollection(const CsvRecordCollection* collection);
-size_t sizeCsvRecord(const CsvRecord* collection);
+int getColumnCountCsvRecordCollection(const CsvRecordCollection* collection);
+
+
+CsvRecord* getRecordCsvRecordCollection(const CsvRecordCollection* collection, int pos);
+void setRecordCsvRecordCollection(CsvRecordCollection* collection, int pos, CsvRecord* record);
+char* getFieldCsvRecord(const CsvRecord* record, int pos);
+
+
+int sizeCsvRecordCollection(const CsvRecordCollection* collection);
+int sizeCsvRecord(const CsvRecord* collection);
 
 
 CsvRecord* pushCsvRecord(CsvRecord* record, void* data);
 CsvRecordCollection* pushCsvRecordCollection(CsvRecordCollection* collection, CsvRecord* record);
 
 
-CsvRecordCollection* constructCollection();
-void destructCollection(void* collection);
+void* copyCsvRecordCollection(const void* from);
+void* copyCsvRecord(const void* from);
+
+CsvRecordCollection* sortCsvRecordCollection(CsvRecordCollection* collection,
+                             int column,
+                             int (*compar)(const char*, const char*),
+                             int (*isValidField)(const char*));
 
 
-CsvRecord* constructRecord();
-void destructRecord(void* record);
+void constructCsvRecordCollection(CsvRecordCollection* collection);
+void destructCsvRecordCollection(void* collection);
+
+
+void constructCsvRecord(CsvRecord* record);
+void destructCsvRecord(void* record);
 
 
 #endif // CSVPARSER_H

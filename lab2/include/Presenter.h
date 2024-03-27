@@ -7,6 +7,8 @@ struct AppData;
 
 struct Params {
     const char* fileName;
+    const char* region;
+    const char* column;
 };
 
 void doOperation(Operation operation, AppData* appData, const Params* params);

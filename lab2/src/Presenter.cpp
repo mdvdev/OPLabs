@@ -8,16 +8,19 @@ void doOperation(Operation operation, AppData* appData, const Params* params)
         initAppData(appData);
         break;
     case OPEN_FILE:
-        saveFileName(appData, params->fileName);
+        setFileName(appData, params->fileName);
         break;
     case LOAD_DATA:
         loadCsvFile(appData);
         break;
     case INPUT_REGION:
+        setRegion(appData, params->region);
         break;
     case INPUT_COLUMN:
+        setColumn(appData, params->column);
         break;
     case CALC_METRICS:
+        calcMetrics(appData);
         break;
     }
 }

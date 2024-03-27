@@ -9,7 +9,7 @@ struct String {
     size_t capacity;
 };
 
-String* initString(String* string, const char* s);
+void constructString(String* string, const char* s);
 void destructString(String* string);
 void assignString(String* string, const char* s);
 

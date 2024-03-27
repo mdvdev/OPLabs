@@ -1,5 +1,6 @@
 #include <QFileDialog>
 #include <QStringList>
+#include <QMessageBox>
 
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
@@ -12,21 +13,39 @@ MainWindow::MainWindow(QWidget* parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
     ui->fileNameLineEdit->setReadOnly(true);
+    ui->minLineEdit->setReadOnly(true);
+    ui->maxLineEdit->setReadOnly(true);
+    ui->medianLineEdit->setReadOnly(true);
 
     doOperation(INIT, &appData, NULL);
     updateUi();
 
     connect(ui->openFilePushButton, &QPushButton::clicked, this, &MainWindow::onOpenFilePushButtonClicked);
     connect(ui->loadDataPushButton, &QPushButton::clicked, this, &MainWindow::onLoadPushButtonClicked);
+    connect(ui->calculateMetricsPushButton, &QPushButton::clicked, this, &MainWindow::onCalcMetricsPushButtonClicked);
+    connect(ui->regionLineEdit, &QLineEdit::textChanged, this, &MainWindow::regionEntered);
+    connect(ui->columnLineEdit, &QLineEdit::textChanged, this, &MainWindow::columnEntered);
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
-    destructCollection(appData.records);
+
+    destructCsvRecordCollection(appData.records);
+
     destructString(&appData.fileName);
+
     destructString(&appData.region);
+
+    destructString(&appData.column);
+
+    destructString(&appData.min);
+
+    destructString(&appData.max);
+
+    destructString(&appData.median);
 }
 
 void MainWindow::onOpenFilePushButtonClicked()
@@ -43,17 +62,102 @@ void MainWindow::onLoadPushButtonClicked()
 {
     doOperation(LOAD_DATA, &appData,  NULL);
     updateUi();
+    displayInfoMessageBox();
+}
+
+void MainWindow::onCalcMetricsPushButtonClicked()
+{
+    doOperation(CALC_METRICS, &appData, NULL);
+    updateUi();
+}
+
+void MainWindow::regionEntered()
+{
+    QString region = ui->regionLineEdit->text();
+    std::string tempRegion = region.toStdString();
+    Params params = { .region = tempRegion.c_str() };
+    doOperation(INPUT_REGION, &appData, &params);
+    updateUi();
+}
+
+void MainWindow::columnEntered()
+{
+    QString column = ui->columnLineEdit->text();
+    std::string tempColumn = column.toStdString();
+    Params params = { .column = tempColumn.c_str() };
+    doOperation(INPUT_COLUMN, &appData, &params);
+    updateUi();
 }
 
 void MainWindow::updateUi()
 {
-    updateFileNameLabel();
+    updateFileNameLineEdit();
+
+    updateRegionLineEdit();
+
+    updateColumnLineEdit();
+
+    updateMinimumLineEdit();
+
+    updateMaximumLineEdit();
+
+    updateMedianLineEdit();
+
     updateTableWidget();
+
+    updateErrorLineEdit();
 }
 
-void MainWindow::updateFileNameLabel()
+void MainWindow::updateErrorLineEdit()
+{
+    ui->errorLineEdit->setText(getErrorMessage());
+}
+
+const char* MainWindow::getErrorMessage()
+{
+    switch (appData.error) {
+    case NO_ERROR:
+        return "No errors";
+    case OPEN_FILE_ERROR:
+        return "Cannot open file";
+    case PARSE_CSV_ERROR:
+        return "Cannot parse CSV file (system error)";
+    case INVALID_COLUMN_ERROR:
+        return "Entered invalid column No.";
+    case INVALID_FIELD_ERROR:
+        return "CSV contains invalid field";
+    }
+}
+
+void MainWindow::updateFileNameLineEdit()
 {
     ui->fileNameLineEdit->setText(appData.fileName.begin);
+}
+
+void MainWindow::updateRegionLineEdit()
+{
+    ui->regionLineEdit->setText(appData.region.begin);
+}
+
+void MainWindow::updateColumnLineEdit()
+{
+
+    ui->columnLineEdit->setText(appData.column.begin);
+}
+
+void MainWindow::updateMinimumLineEdit()
+{
+    ui->minLineEdit->setText(appData.min.begin);
+}
+
+void MainWindow::updateMaximumLineEdit()
+{
+    ui->maxLineEdit->setText(appData.max.begin);
+}
+
+void MainWindow::updateMedianLineEdit()
+{
+    ui->medianLineEdit->setText(appData.median.begin);
 }
 
 void MainWindow::updateTableWidget()
@@ -62,72 +166,100 @@ void MainWindow::updateTableWidget()
         return;
     }
 
+    clearTableWidget();
+
     const CsvRecord* csvHeader = getRecordCsvRecordCollection(appData.records, 0);
-    size_t columnCount = sizeCsvRecord(csvHeader);
-    size_t rowCount = sizeCsvRecordCollection(appData.records);
+    int columnCount = sizeCsvRecord(csvHeader);
 
     ui->tableWidget->setColumnCount(columnCount);
-    ui->tableWidget->setRowCount(rowCount);
     addColumnHeaders(csvHeader, columnCount);
 
-    size_t errorCount = fillTableWidget();
-
-    //QWidget* window = new QWidget();
-    //window->resize(320, 240);
-    //window->show();
+    fillTableWidget();
 }
 
-bool MainWindow::isValidCsvRecord(const CsvRecord* record, size_t columnCount)
+void MainWindow::displayInfoMessageBox()
 {
-    return sizeCsvRecord(record) == columnCount;
+    int errorCount = getErrorCount();
+    int totalCount = sizeCsvRecordCollection(appData.records);
+    int validCount = totalCount - errorCount;
+
+    QString str;
+    str = QString("Errors: %1\nTotal: %2\nValid: %3").arg(errorCount).arg(totalCount).arg(validCount);
+
+    QMessageBox::information(this, "Info", str, QMessageBox::Ok);
 }
 
-void MainWindow::addColumnHeaders(const CsvRecord* csvHeader, size_t columnCount)
+void MainWindow::clearTableWidget()
+{
+    ui->tableWidget->setRowCount(0);
+}
+
+void MainWindow::addColumnHeaders(const CsvRecord* csvHeader, int columnCount)
 {
     QStringList headers;
 
-    for (size_t i = 0; i < columnCount; ++i) {
+    for (int i = 0; i < columnCount; ++i) {
         headers << getFieldCsvRecord(csvHeader, i);
     }
 
     ui->tableWidget->setHorizontalHeaderLabels(headers);
 }
 
-size_t MainWindow::fillTableWidget()
+int MainWindow::getErrorCount()
 {
-    const CsvRecord* csvHeader = getRecordCsvRecordCollection(appData.records, 0);
-    size_t columnCount = sizeCsvRecord(csvHeader);
-    size_t collectionSize = sizeCsvRecordCollection(appData.records);
-    size_t errorCount = 0;
+    if (!appData.records) {
+        return 0;
+    }
 
-    for (size_t i = 1; i < collectionSize; ++i) {
+    const CsvRecord* csvHeader = getRecordCsvRecordCollection(appData.records, 0);
+    int columnCount = sizeCsvRecord(csvHeader);
+    int collectionSize = sizeCsvRecordCollection(appData.records);
+    int errorCount = 0;
+
+    for (int i = 1; i < collectionSize; ++i) {
         const CsvRecord* record = getRecordCsvRecordCollection(appData.records, i);
-        const char* region = getFieldCsvRecord(record, 1); // field 1 associated with region
         if (!isValidCsvRecord(record, columnCount)) {
             errorCount++;
-        } else if (!isRecordContainsEmptyField(record) &&
-                   (strcmp(appData.region.begin, "") == 0 || strcmp(appData.region.begin, region) == 0))
-        {
-            for (size_t j = 0; j < columnCount; ++j) {
-                const char* field = getFieldCsvRecord(record, j);
-                QTableWidgetItem* item = new QTableWidgetItem(field);
-                ui->tableWidget->setItem(i-1, j, item);
-            }
         }
     }
 
     return errorCount;
 }
 
-bool MainWindow::isRecordContainsEmptyField(const CsvRecord* record)
+void MainWindow::fillTableWidget()
 {
-    size_t size = sizeCsvRecord(record);
+    const CsvRecord* csvHeader = getRecordCsvRecordCollection(appData.records, 0);
+    int columnCount = sizeCsvRecord(csvHeader);
+    int collectionSize = sizeCsvRecordCollection(appData.records);
 
-    for (size_t i = 0; i < size; ++i) {
+    for (int i = 1; i < collectionSize; ++i) {
+        const CsvRecord* record = getRecordCsvRecordCollection(appData.records, i);
+        const char* region = getFieldCsvRecord(record, 1); // field 1 associated with region
+
+        if (isValidCsvRecord(record, columnCount) &&
+            !isRecordContainsEmptyField(record) &&
+            (strcmp(appData.region.begin, "") == 0 || strcmp(appData.region.begin, region) == 0))
+        {
+            ui->tableWidget->setRowCount(ui->tableWidget->rowCount() + 1);
+
+            for (int j = 0; j < columnCount; ++j) {
+                const char* field = getFieldCsvRecord(record, j);
+                QTableWidgetItem* item = new QTableWidgetItem(field);
+                ui->tableWidget->setItem(ui->tableWidget->rowCount() - 1, j, item);
+            }
+        }
+    }
+}
+
+int MainWindow::isRecordContainsEmptyField(const CsvRecord* record)
+{
+    int size = sizeCsvRecord(record);
+
+    for (int i = 0; i < size; ++i) {
         if (!getFieldCsvRecord(record, i)) {
-            return true;
+            return 1;
         }
     }
 
-    return false;
+    return 0;
 }

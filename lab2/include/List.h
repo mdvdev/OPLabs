@@ -1,36 +1,36 @@
 #ifndef LIST_H
 #define LIST_H
 
-#include <stdio.h>
-
-struct ListItem {
-    void* data;
-    ListItem* next;
-    ListItem* prev;
-};
-
 struct List {
-    ListItem* first;
-    ListItem* last;
-    size_t size;
+    struct Node {
+        void* data;
+        Node* next;
+        Node* prev;
+    };
+
+    Node* first;
+    Node* last;
+    int size;
 };
 
 
-List createList();
-void freeList(List* list, void (*destructor)(void* data));
+void constructList(List* list);
+void destructList(List* list, void (*destructor)(void* data));
 
 
-ListItem* constructListItem(void* data);
-void destructListItem(ListItem* item, void (*destructor)(void* data));
+List* copyList(List* to, const List* from,
+               void* (*copyConstructor)(const void*),
+               void (*destructor)(void*));
 
 
-ListItem* pushList(List* list, ListItem* item);
-ListItem* popList(List* list);
+List* pushList(List* list, void* data);
+void* popList(List* list);
 
 
-void* getDataList(const List* list, size_t pos);
+void* getDataList(const List* list, int pos);
+void setDataList(List* list, int pos, void* data);
 
 
-size_t sizeList(const List* list);
+int sizeList(const List* list);
 
 #endif // LIST_H

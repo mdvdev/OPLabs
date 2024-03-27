@@ -17,21 +17,36 @@ private:
     Ui::MainWindow* ui;
     AppData appData;
 public:
-    MainWindow(QWidget* parent = nullptr);
+    explicit MainWindow(QWidget* parent = nullptr);
     ~MainWindow();
 private slots:
     void onOpenFilePushButtonClicked();
     void onLoadPushButtonClicked();
+    void onCalcMetricsPushButtonClicked();
+    void regionEntered();
+    void columnEntered();
 private:
     void updateUi();
-    void updateFileNameLabel();
+    void updateFileNameLineEdit();
     void updateTableWidget();
+    void updateRegionLineEdit();
+    void updateColumnLineEdit();
+    void updateMinimumLineEdit();
+    void updateMaximumLineEdit();
+    void updateMedianLineEdit();
+    void updateErrorLineEdit();
 
-    void addColumnHeaders(const CsvRecord* csvHeader, size_t columnCount);
-    size_t fillTableWidget();
+    const char* getErrorMessage();
 
-    bool isRecordContainsEmptyField(const CsvRecord* record);
-    bool isValidCsvRecord(const CsvRecord* record, size_t columnCount);
+    void displayInfoMessageBox();
+
+    void addColumnHeaders(const CsvRecord* csvHeader, int columnCount);
+    void fillTableWidget();
+    void clearTableWidget();
+
+    int getErrorCount();
+
+    int isRecordContainsEmptyField(const CsvRecord* record);
 };
 
 #endif // MAINWINDOW_H

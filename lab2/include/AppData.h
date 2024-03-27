@@ -11,10 +11,10 @@ struct AppData {
     Error error;
     String fileName;
     String region;
-    size_t column;
-    size_t min;
-    size_t max;
-    size_t median;
+    String column;
+    String min;
+    String max;
+    String median;
 };
 
 #endif // APPDATA_H

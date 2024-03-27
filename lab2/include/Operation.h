@@ -7,7 +7,7 @@ enum Operation {
     LOAD_DATA,
     INPUT_REGION,
     INPUT_COLUMN,
-    CALC_METRICS
+    CALC_METRICS,
 };
 
 #endif // OPERATION_H
