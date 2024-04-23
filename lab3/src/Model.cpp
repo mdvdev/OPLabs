@@ -7,7 +7,6 @@
 
 #include "CsvParser.h"
 
-#define DEFAULT_CALC_INVALID_VALUE 0
 #define EPSILON 0.0001
 
 static int strToFloat(const char* str, float* n)
