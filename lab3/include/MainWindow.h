@@ -5,6 +5,8 @@
 
 #include "AppData.h"
 
+class ScalablePixmapLabel;
+
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
@@ -19,10 +21,11 @@ private:
 public:
     explicit MainWindow(QWidget* parent = nullptr);
     ~MainWindow();
+    friend class ScalablePixmapLabel;
 private slots:
     void onOpenFilePushButtonClicked();
     void onLoadPushButtonClicked();
-    void onCalcMetricsPushButtonClicked();
+    void onCalcDrawPushButtonClicked();
     void regionEntered();
     void columnEntered();
 private:
@@ -36,9 +39,11 @@ private:
     void updateMedianLineEdit();
     void updateErrorLineEdit();
 
+    void showGraphWindow();
+
     const char* getErrorMessage();
 
-    void displayInfoMessageBox();
+    void showInfoMessageBox();
 
     void addColumnHeaders(const CsvRecord* csvHeader, int columnCount);
     void fillTableWidget();

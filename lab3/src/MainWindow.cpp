@@ -1,9 +1,11 @@
 #include <QFileDialog>
 #include <QStringList>
 #include <QMessageBox>
+#include <QPainter>
 
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
+#include "GraphWindow.h"
 
 #include "Presenter.h"
 
@@ -23,7 +25,7 @@ MainWindow::MainWindow(QWidget* parent)
 
     connect(ui->openFilePushButton, &QPushButton::clicked, this, &MainWindow::onOpenFilePushButtonClicked);
     connect(ui->loadDataPushButton, &QPushButton::clicked, this, &MainWindow::onLoadPushButtonClicked);
-    connect(ui->calculateMetricsPushButton, &QPushButton::clicked, this, &MainWindow::onCalcMetricsPushButtonClicked);
+    connect(ui->calculateDrawPushButton, &QPushButton::clicked, this, &MainWindow::onCalcDrawPushButtonClicked);
     connect(ui->regionLineEdit, &QLineEdit::textChanged, this, &MainWindow::regionEntered);
     connect(ui->columnLineEdit, &QLineEdit::textChanged, this, &MainWindow::columnEntered);
 }
@@ -32,7 +34,7 @@ MainWindow::~MainWindow()
 {
     delete ui;
 
-    destructCsvRecordCollection(appData.records);
+    destructCsvRecordCollection(appData.records, false);
 
     destructString(&appData.errorCount);
 
@@ -53,6 +55,17 @@ MainWindow::~MainWindow()
     destructString(&appData.median);
 }
 
+void MainWindow::showGraphWindow()
+{
+    if (appData.error != NO_ERROR ||
+        strcmp(appData.region.begin, "") == 0)
+    {
+        return;
+    }
+    GraphWindow graphWindow(&appData, this);
+    graphWindow.exec();
+}
+
 void MainWindow::onOpenFilePushButtonClicked()
 {
     QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"),
@@ -67,13 +80,14 @@ void MainWindow::onLoadPushButtonClicked()
 {
     doOperation(LOAD_DATA, &appData,  NULL);
     updateUi();
-    displayInfoMessageBox();
+    showInfoMessageBox();
 }
 
-void MainWindow::onCalcMetricsPushButtonClicked()
+void MainWindow::onCalcDrawPushButtonClicked()
 {
     doOperation(CALC_METRICS, &appData, NULL);
     updateUi();
+    showGraphWindow();
 }
 
 void MainWindow::regionEntered()
@@ -99,13 +113,10 @@ void MainWindow::updateUi()
     updateFileNameLineEdit();
 
     updateRegionLineEdit();
-
     updateColumnLineEdit();
 
     updateMinimumLineEdit();
-
     updateMaximumLineEdit();
-
     updateMedianLineEdit();
 
     updateTableWidget();
@@ -185,7 +196,7 @@ void MainWindow::updateTableWidget()
     fillTableWidget();
 }
 
-void MainWindow::displayInfoMessageBox()
+void MainWindow::showInfoMessageBox()
 {
     QString str;
     str = QString("Errors: %1\nTotal: %2\nValid: %3")
@@ -222,8 +233,7 @@ void MainWindow::fillTableWidget()
         const CsvRecord* record = getRecordCsvRecordCollection(appData.records, i);
         const char* region = getFieldCsvRecord(record, 1); // field 1 associated with region
 
-        if (isValidCsvRecord(record, columnCount) &&
-            !isRecordContainsEmptyField(record) &&
+        if (!isRecordContainsEmptyField(record) &&
             (strcmp(appData.region.begin, "") == 0 || strcmp(appData.region.begin, region) == 0))
         {
             ui->tableWidget->setRowCount(ui->tableWidget->rowCount() + 1);
@@ -231,7 +241,6 @@ void MainWindow::fillTableWidget()
             for (int j = 0; j < columnCount; ++j) {
                 const char* field = getFieldCsvRecord(record, j);
                 QTableWidgetItem* item = new QTableWidgetItem(field);
-                item->setFlags(item->flags() & ~Qt::ItemIsEditable);
                 ui->tableWidget->setItem(ui->tableWidget->rowCount() - 1, j, item);
             }
         }

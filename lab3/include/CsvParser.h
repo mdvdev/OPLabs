@@ -20,9 +20,6 @@ CsvRecordCollection* parseCsv(FILE* fp);
 int isValidCsvRecord(const CsvRecord* record, int column);
 
 
-CsvRecordCollection* removeInvalidRecords(CsvRecordCollection* collection, int column);
-
-
 int getColumnCountCsvRecordCollection(const CsvRecordCollection* collection);
 
 
@@ -49,7 +46,7 @@ CsvRecordCollection* sortCsvRecordCollection(CsvRecordCollection* collection,
 
 
 void constructCsvRecordCollection(CsvRecordCollection* collection);
-void destructCsvRecordCollection(void* collection);
+void destructCsvRecordCollection(void* collection, bool weakOwnership);
 
 
 void constructCsvRecord(CsvRecord* record);

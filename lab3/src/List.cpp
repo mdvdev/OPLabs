@@ -108,13 +108,15 @@ void constructList(List* list)
 
 void destructList(List* list, void (*destructor)(void*))
 {
-    if (!list || !destructor) {
+    if (!list) {
         return;
     }
 
     for (List::Node* current = list->first; current; ) {
         List::Node* tmp = current->next;
-        destructNode(current, destructor);
+        if (destructor) {
+            destructNode(current, destructor);
+        }
         free(current);
         current = tmp;
     }

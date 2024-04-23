@@ -96,10 +96,14 @@ static CsvRecordCollection* processString(const char* str, CsvRecordCollection* 
         return NULL;
     }
 
-    if (!pushCsvRecordCollection(collection, record)) {
-        destructCsvRecord(record);
-        free(record);
-        return NULL;
+    int columnCount = getColumnCountCsvRecordCollection(collection);
+
+    if (columnCount == 0 || sizeCsvRecord(record) == columnCount) {
+        if (!pushCsvRecordCollection(collection, record)) {
+            destructCsvRecord(record);
+            free(record);
+            return NULL;
+        }
     }
 
     return collection;
@@ -142,9 +146,9 @@ CsvRecordCollection* parseCsv(FILE* fp)
     size_t num;
 
     while ((rc = getline(&buf, &num, fp)) != -1) {
-        buf[rc-1] = '\0';
+        buf[rc - 1] = '\0';
         if (!processString(buf, collection)) {
-            destructCsvRecordCollection(collection);
+            destructCsvRecordCollection(collection, false);
             free(collection);
             collection = NULL;
             break;
@@ -154,7 +158,7 @@ CsvRecordCollection* parseCsv(FILE* fp)
     free(buf);
 
     if (ferror(fp)) {
-        destructCsvRecordCollection(collection);
+        destructCsvRecordCollection(collection, false);
         free(collection);
         collection = NULL;
     }
@@ -171,14 +175,14 @@ void constructCsvRecordCollection(CsvRecordCollection* collection)
     constructList(&collection->records);
 }
 
-void destructCsvRecordCollection(void* collection)
+void destructCsvRecordCollection(void* collection, bool weakOwnership)
 {
     if (!collection) {
         return;
     }
 
     CsvRecordCollection* collection_ = (CsvRecordCollection*) collection;
-    destructList(&collection_->records, destructCsvRecord);
+    destructList(&collection_->records, weakOwnership ? NULL : destructCsvRecord);
 }
 
 void constructCsvRecord(CsvRecord* record)
@@ -296,36 +300,12 @@ void* copyCsvRecordCollection(const void* from)
     constructCsvRecordCollection(to);
 
     if (!copyList(&to->records, &from_->records, copyCsvRecord, destructCsvRecord)) {
-        destructCsvRecordCollection(to);
+        destructCsvRecordCollection(to, false);
         free(to);
         return NULL;
     }
 
     return to;
-}
-
-CsvRecordCollection* removeInvalidRecords(CsvRecordCollection* collection, int column)
-{
-    CsvRecordCollection* newCollection = (CsvRecordCollection*) malloc(sizeof(CsvRecordCollection));
-    if (!newCollection) {
-        return NULL;
-    }
-
-    constructCsvRecordCollection(newCollection);
-
-    int columnCount = getColumnCountCsvRecordCollection(collection);
-    int collectionSize = sizeCsvRecordCollection(collection);
-    for (int i = 0; i < collectionSize; ++i) {
-        CsvRecord* record = (CsvRecord*) copyCsvRecord(getRecordCsvRecordCollection(collection, i));
-        if (isValidCsvRecord(record, columnCount) && getFieldCsvRecord(record, column - 1)) {
-            pushCsvRecordCollection(newCollection, record);
-        } else {
-            destructCsvRecord(record);
-            free(record);
-        }
-    }
-
-    return newCollection;
 }
 
 CsvRecordCollection* sortCsvRecordCollection(CsvRecordCollection* collection,
