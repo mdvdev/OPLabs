@@ -7,7 +7,6 @@
 
 #include "CsvParser.h"
 
-#define DEFAULT_CALC_INVALID_VALUE 0
 #define EPSILON 0.0001
 
 static int strToFloat(const char* str, float* n)
@@ -52,7 +51,6 @@ static Error minMaxSetInitVal(AppData* appData, int columnNo, float* min, float*
 {
     const CsvRecord* record = NULL;
     int collectionSize = sizeCsvRecordCollection(appData->records);
-    int columnCount = getColumnCountCsvRecordCollection(appData->records);
 
     for (int i = 1; i < collectionSize; ++i) {
         record = getRecordCsvRecordCollection(appData->records, i);
@@ -60,9 +58,8 @@ static Error minMaxSetInitVal(AppData* appData, int columnNo, float* min, float*
         if (!recordRegion) {
             continue;
         }
-        if (isValidCsvRecord(record, columnCount) &&
-            (strcmp(appData->region.begin, "") == 0 ||
-            strcmp(appData->region.begin, recordRegion) == 0))
+        if (strcmp(appData->region.begin, "") == 0 ||
+            strcmp(appData->region.begin, recordRegion) == 0)
         {
             const char* field = getFieldCsvRecord(record, columnNo - 1);
             if (!field) {
@@ -195,6 +192,30 @@ static int isValidFloatField(const char* a)
     return strToFloat(a, &tempA);
 }
 
+static CsvRecordCollection* removeIrrelevantRecords(AppData* appData)
+{
+    if (!appData) {
+        return NULL;
+    }
+
+    CsvRecordCollection* newCollection = (CsvRecordCollection*) malloc(sizeof(CsvRecordCollection));
+    if (!newCollection) {
+        return NULL;
+    }
+
+    constructCsvRecordCollection(newCollection);
+
+    int collectionSize = sizeCsvRecordCollection(appData->records);
+    for (int i = 1; i < collectionSize; ++i) {
+        CsvRecord* record = getRecordCsvRecordCollection(appData->records, i);
+        if (strcmp(appData->region.begin, getFieldCsvRecord(record, 1)) == 0) {
+            pushCsvRecordCollection(newCollection, record);
+        }
+    }
+
+    return newCollection;
+}
+
 static Error calcMedian(AppData* appData)
 {
     if (!appData || strcmp(appData->column.begin, "") == 0) {
@@ -209,10 +230,11 @@ static Error calcMedian(AppData* appData)
         return INVALID_COLUMN_ERROR;
     }
 
-    CsvRecordCollection* clearCollection = removeInvalidRecords(appData->records, columnNo);
+    // weak ownership (data sharing)
+    CsvRecordCollection* clearCollection = removeIrrelevantRecords(appData);
 
     if (!sortCsvRecordCollection(clearCollection, columnNo, floatComparator, isValidFloatField)) {
-        destructCsvRecordCollection(clearCollection);
+        destructCsvRecordCollection(clearCollection, true);
         free(clearCollection);
         return INVALID_FIELD_ERROR;
     }
@@ -223,7 +245,7 @@ static Error calcMedian(AppData* appData)
 
     assignString(&appData->median, field);
 
-    destructCsvRecordCollection(clearCollection);
+    destructCsvRecordCollection(clearCollection, true);
     free(clearCollection);
 
     return NO_ERROR;
@@ -321,7 +343,7 @@ void loadCsvFile(AppData* appData)
     }
 
     if (appData->records) {
-        destructCsvRecordCollection(appData->records);
+        destructCsvRecordCollection(appData->records, false);
         free(appData->records);
     }
 
@@ -369,9 +391,7 @@ void setColumn(AppData* appData, const char* column)
 
 void calcMetrics(AppData* appData)
 {
-    if (!appData || !appData->records ||
-        strcmp(appData->column.begin, "") == 0)
-    {
+    if (!appData || !appData->records) {
         return;
     }
 
