@@ -5,6 +5,7 @@
 
 class ScalablePixmapLabel;
 struct AppData;
+struct GraphParams;
 
 namespace Ui {
 class GraphWindow;
@@ -22,9 +23,8 @@ public:
     ~GraphWindow();
     QPixmap createPixmap();
 private:
-    bool drawOx(QPixmap& pixmap, int xMin, int xMax, double yMin, double yMax);
-    bool drawOy(QPixmap& pixmap, int xMin, int xMax, double yMin, double yMax);
-    bool drawLines(QPixmap& pixmap, int xMin, int xMax, double yMin, double yMax);
+    void drawAxis(GraphParams params);
+    bool drawGraph(QPixmap& pixmap, int xMin, int xMax, double yMin, double yMax);
     void showGraphLabel();
 };
 

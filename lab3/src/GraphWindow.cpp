@@ -6,6 +6,21 @@
 
 #include "AppData.h"
 
+struct GraphParams {
+    CsvRecord* record;
+    QPainter* painter;
+    int xMax, xMin;
+    double yMax, yMin;
+    double median;
+    int width, height;
+    int scaleOx;
+    int column;
+    double scaleOy;
+    int oxShift;
+    int arg;
+    double value;
+};
+
 GraphWindow::GraphWindow(AppData* appData, QWidget* parent)
     : QDialog(parent)
     , ui(new Ui::GraphWindow)
@@ -47,62 +62,45 @@ void GraphWindow::showGraphLabel()
     graphLabel->setPixmap(createPixmap());
 
 }
-bool GraphWindow::drawOx(QPixmap& pixmap, int xMin, int xMax, double yMin, double yMax)
+
+void GraphWindow::drawAxis(GraphParams params)
 {
-    const int width = graphLabel->width();
-    const int height = graphLabel->height();
-    const int scaleOx = width / (xMax - xMin);
-    const double scaleOy = (double) height / (yMax - yMin);
-
-    QPainter painter(&pixmap);
-
-    const int oxShift = yMin < 0 ? height + scaleOy * yMin : height - 1;
-    painter.drawLine(QPoint{0, oxShift}, QPoint{width, oxShift});
-    painter.drawText(QPoint{width - 10, oxShift - 15}, "x");
-
-    QPen pen;
-    pen.setWidth(3);
-    pen.setColor(Qt::black);
-    painter.setPen(pen);
-
-    QFont font = painter.font();
+    QFont font = params.painter->font();
     font.setPointSize(6);
-    painter.setFont(font);
-
     QFontMetrics fm(font);
+    int x = params.scaleOx * (params.arg - params.xMin);
+    int y = params.height - params.scaleOy * (params.value - params.yMin);
+    int fontWidth = fm.horizontalAdvance(QString::number(params.value));
+    QPen pen;
 
-    int collectionSize = sizeCsvRecordCollection(appData->records);
+    pen.setWidth(3);
+    pen.setColor(params.value == params.yMin || params.value == params.yMax || params.value == params.median ?
+                     Qt::red : Qt::black);
+    params.painter->setPen(pen);
 
-    for (int i = 1; i < collectionSize; ++i) {
-        CsvRecord* record = getRecordCsvRecordCollection(appData->records, i);
-        const char* argStr;
-        int arg;
-
-        if (strcmp(getFieldCsvRecord(record, 1), appData->region.begin)) {
-            continue;
-        }
-        if (!(argStr = getFieldCsvRecord(record, 0))) {
-            continue;
-        }
-        if (sscanf(argStr, "%d", &arg) != 1) {
-            return false;
-        }
-
-        int x = scaleOx * (arg - xMin);
-        int fontWidth = fm.horizontalAdvance(argStr);
-        if (x + fontWidth >= width) {
-            painter.drawText(QPoint{width - fontWidth, oxShift - 12}, argStr);
-        } else {
-            painter.drawText(QPoint{x, oxShift - 5}, argStr);
-        }
-
-        painter.drawPoint(QPoint{x, oxShift});
+    // work with OX
+    if (x + fontWidth >= params.width) {
+        params.painter->drawText(QPoint{params.width - fontWidth, params.oxShift - 12},
+                                 QString::number(params.arg));
+    } else {
+        params.painter->drawText(QPoint{x, params.oxShift - 5}, QString::number(params.arg));
     }
 
-    return true;
+    params.painter->drawPoint(QPoint{x, params.oxShift});
+
+    // work with OY
+    if (x + fontWidth >= params.width) {
+        params.painter->drawText(QPoint{params.width - fontWidth, y == 0 ?
+                        y + 10 : y == params.width ? y - 5 : y}, QString::number(params.value));
+    } else {
+        params.painter->drawText(QPoint{x + 3, y == 0 ?
+                        y + 10 : y == params.width ? y - 5 : y}, QString::number(params.value));
+    }
+
+    params.painter->drawPoint(QPoint{x, y});
 }
 
-bool GraphWindow::drawOy(QPixmap& pixmap, int xMin, int xMax, double yMin, double yMax)
+bool GraphWindow::drawGraph(QPixmap& pixmap, int xMin, int xMax, double yMin, double yMax)
 {
     int column;
     double median;
@@ -117,24 +115,20 @@ bool GraphWindow::drawOy(QPixmap& pixmap, int xMin, int xMax, double yMin, doubl
     const int height = graphLabel->height();
     const int scaleOx = width / (xMax - xMin);
     const double scaleOy = (double) height / (yMax - yMin);
+    const int oxShift = yMin < 0 ? height + scaleOy * yMin : height - 1;
 
     QPainter painter(&pixmap);
+    QPen pen;
+
+    painter.drawLine(QPoint{0, oxShift}, QPoint{width, oxShift});
+    painter.drawText(QPoint{width - 10, oxShift - 15}, "x");
 
     painter.drawLine(QPoint{0, 0}, QPoint{0, height});
     painter.drawText(QPoint{10, 20}, "y");
 
-    QPen pen;
-    pen.setWidth(3);
-    pen.setColor(Qt::black);
-    painter.setPen(pen);
-
-    QFont font = painter.font();
-    font.setPointSize(6);
-    painter.setFont(font);
-
-    QFontMetrics fm(font);
-
     int collectionSize = sizeCsvRecordCollection(appData->records);
+    int saved_x = -1;
+    int saved_y = -1;
 
     for (int i = 1; i < collectionSize; ++i) {
         CsvRecord* record = getRecordCsvRecordCollection(appData->records, i);
@@ -152,69 +146,30 @@ bool GraphWindow::drawOy(QPixmap& pixmap, int xMin, int xMax, double yMin, doubl
             return false;
         }
 
-        int x = scaleOx * (arg - xMin);
-        int y = height - scaleOy * (value - yMin);
-        int fontWidth = fm.horizontalAdvance(valueStr);
-
-        pen.setColor(value == yMin || value == yMax || value == median ? Qt::red : Qt::black);
-        painter.setPen(pen);
-
-        if (x + fontWidth >= width) {
-            painter.drawText(QPoint{width - fontWidth, y == 0 ? y + 10 : y == width ? y - 5 : y}, valueStr);
-        } else {
-            painter.drawText(QPoint{x + 3, y == 0 ? y + 10 : y == width ? y - 5 : y}, valueStr);
-        }
-
-        painter.drawPoint(QPoint{x, y});
-    }
-
-    return true;
-}
-
-bool GraphWindow::drawLines(QPixmap& pixmap, int xMin, int xMax, double yMin, double yMax)
-{
-    int column;
-
-    if (sscanf(appData->column.begin, "%d", &column) != 1) {
-        return false;
-    }
-
-    const int width = graphLabel->width();
-    const int height = graphLabel->height();
-    const int scaleOx = width / (xMax - xMin);
-    const double scaleOy = (double) height / (yMax - yMin);
-
-    QPainter painter(&pixmap);
-    painter.setPen(Qt::black);
-
-    QPen pen;
-    pen.setWidth(1);
-    pen.setColor(Qt::black);
-    painter.setPen(pen);
-
-    int collectionSize = sizeCsvRecordCollection(appData->records);
-    int saved_x = -1;
-    int saved_y = -1;
-
-    for (int i = 1; i < collectionSize; ++i) {
-        CsvRecord* record = getRecordCsvRecordCollection(appData->records, i);
-        const char* arg_str;
-        const char* value_str;
-        int arg;
-        double value;
-        if (strcmp(getFieldCsvRecord(record, 1), appData->region.begin)) {
-            continue;
-        }
-        if (!(arg_str = getFieldCsvRecord(record, 0)) || !(value_str = getFieldCsvRecord(record, column - 1))) {
-            continue;
-        }
-        if (sscanf(arg_str, "%d", &arg) != 1 || sscanf(value_str, "%lf", &value) != 1) {
-            return false;
-        }
+        drawAxis(GraphParams{
+                    .record = record,
+                    .painter = &painter,
+                    .xMax = xMax,
+                    .xMin = xMin,
+                    .yMin = yMin,
+                    .yMax = yMax,
+                    .median = median,
+                    .width = width,
+                    .height = height,
+                    .scaleOx = scaleOx,
+                    .scaleOy = scaleOy,
+                    .column = column,
+                    .oxShift = oxShift,
+                    .arg = arg,
+                    .value = value});
 
         int x = scaleOx * (arg - xMin);
         int y = height - scaleOy * (value - yMin);
+
         if (i != 1) {
+            pen.setColor(Qt::black);
+            pen.setWidth(1);
+            painter.setPen(pen);
             painter.drawLine(QPoint{saved_x, saved_y}, QPoint{x, y});
         }
 
@@ -250,10 +205,7 @@ QPixmap GraphWindow::createPixmap()
     QPixmap pixmap(width, height);
     pixmap.fill(Qt::white);
 
-    if (!drawOx(pixmap, xMin, xMax, yMin, yMax) ||
-        !drawOy(pixmap, xMin, xMax, yMin, yMax) ||
-        !drawLines(pixmap, xMin, xMax, yMin, yMax))
-    {
+    if (!drawGraph(pixmap, xMin, xMax, yMin, yMax)) {
         return QPixmap();
     }
 
