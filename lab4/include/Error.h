@@ -1,0 +1,13 @@
+#ifndef ERROR_H
+#define ERROR_H
+
+enum Error {
+    NO_ERROR,
+    OPEN_FILE_ERROR,
+    PARSE_CSV_ERROR,
+    SKIP_RECORD_ERROR,
+    INVALID_RECORD_ERROR,
+    INVALID_RANGE_ERROR,
+};
+
+#endif // ERROR_H
