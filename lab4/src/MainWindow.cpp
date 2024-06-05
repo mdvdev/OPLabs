@@ -73,12 +73,11 @@ void MainWindow::onLoadPushButtonClicked()
     QString to = ui->toNormalizationLineEdit->text();
     std::string tempFrom = from.toStdString();
     std::string tempTo = to.toStdString();
-    if (tempFrom != "" || tempTo != "") {
-        Params params;
-        params.normalizationFrom = tempFrom.c_str();
-        params.normalizationTo = tempTo.c_str();
-        doOperation(NORMALIZE_SHAPE, &appData, &params);
-    }
+
+    Params params;
+    params.normalizationFrom = tempFrom.c_str();
+    params.normalizationTo = tempTo.c_str();
+    doOperation(NORMALIZE_SHAPE, &appData, &params);
 
     updateUi();
     showInfoMessageBox();
@@ -210,7 +209,7 @@ void MainWindow::drawShape(QGraphicsScene* scene)
     int size = sizeList(appData.pointMatrix);
 
     QGraphicsEllipseItem* centralPoint = new QGraphicsEllipseItem(0, 0, cellSize/4, cellSize/4);
-    centralPoint->setBrush(QColorConstants::Svg::black);
+    centralPoint->setBrush(QColorConstants::Svg::green);
     centralPoint->setPos(0, 0);
     scene->addItem(centralPoint);
 
@@ -251,15 +250,15 @@ const char* MainWindow::getErrorMessage()
 {
     switch (appData.error) {
     case NO_ERROR:
-        return "No errors";
+        return "No errors.";
     case OPEN_FILE_ERROR:
-        return "Cannot open file";
+        return "Error: cannot open file.";
     case PARSE_CSV_ERROR:
-        return "Cannot parse CSV file (system error)";
+        return "Error: cannot parse CSV file (system error).";
     case INVALID_RECORD_ERROR:
-        return "CSV file contains invalid record";
+        return "Error: CSV file contains invalid record.";
     case INVALID_RANGE_ERROR:
-        return "Invalid range";
+        return "Error: invalid normalization range.";
     case SKIP_RECORD_ERROR:
         return "";
     }

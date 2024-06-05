@@ -10,6 +10,14 @@
 #include "Point.h"
 #include "List.h"
 
+struct Params {
+    const char* axis;
+    float factor;
+    float from;
+    float to;
+    AppData* appData;
+};
+
 static int strToFloat(const char* str, float* n)
 {
     return sscanf(str, "%f", n) == 1;
@@ -184,6 +192,76 @@ static float normalizeValue(AppData* appData, const char* axis, float value,  fl
     return min == max ? value : from + (value - min) / (max - min) * (to - from);
 }
 
+static void scaleShapeCallback(Point* point, void* data)
+{
+    float scaleFactor = *(float*) data;
+    point->x *= scaleFactor;
+    point->y *= scaleFactor;
+    point->z *= scaleFactor;
+}
+
+static void moveShapeCallback(Point* point, void* data)
+{
+    Params params = *(Params*) data;
+    const char* axis = params.axis;
+    float moveFactor = params.factor;
+
+    if (strcmp(axis, "X") == 0) {
+        point->x += moveFactor;
+    } else if (strcmp(axis, "Y") == 0) {
+        point->y += moveFactor;
+    } else {
+        point->z += moveFactor;
+    }
+}
+
+static void rotateShapeCallback(Point* point, void* data)
+{
+    Params params = *(Params*) data;
+    const char* axis = params.axis;
+    float rotateFactor = params.factor;
+    float angle = rotateFactor / 10;
+
+    if (strcmp(axis, "X") == 0) {
+        float savedY = point->y;
+        point->y = savedY * cos(angle) - point->z * sin(angle);
+        point->z = savedY * sin(angle) + point->z * cos(angle);
+    } else if (strcmp(axis, "Y") == 0) {
+        float savedX = point->x;
+        point->x = savedX * cos(angle) + point->z * sin(angle);
+        point->z = -savedX * sin(angle) + point->z * cos(angle);
+    } else {
+        float savedX = point->x;
+        point->x = savedX * cos(angle) - point->y * sin(angle);
+        point->y = savedX * sin(angle) + point->y * cos(angle);
+    }
+}
+
+static void normalizeShapeCallback(Point* point, void* data)
+{
+    Params params = *(Params*) data;
+    AppData* appData = params.appData;
+    float from = params.from;
+    float to = params.to;
+
+    point->x = normalizeValue(appData, "X", point->x, from, to);
+    point->y = normalizeValue(appData, "Y", point->y, from, to);
+    point->z = normalizeValue(appData, "Z", point->z, from, to);
+}
+
+static void traversePointMatrix(AppData* appData, void (*cb)(Point*, void*), void* data)
+{
+    int size = sizeList(appData->pointMatrix);
+    for (int i = 0; i < size; ++i) {
+        List* record = (List*) getDataList(appData->pointMatrix, i);
+        int recordSize = sizeList(record);
+        for (int j = 0; j < recordSize; ++j) {
+            Point* point = (Point*) getDataList(record, j);
+            cb(point, data);
+        }
+    }
+}
+
 void initAppData(AppData* appData)
 {
     appData->error = NO_ERROR;
@@ -239,18 +317,7 @@ void scaleShape(AppData* appData, float scaleFactor)
     if (!appData->pointMatrix) {
         return;
     }
-
-    int size = sizeList(appData->pointMatrix);
-    for (int i = 0; i < size; ++i) {
-        List* record = (List*) getDataList(appData->pointMatrix, i);
-        int recordSize = sizeList(record);
-        for (int j = 0; j < recordSize; ++j) {
-            Point* point = (Point*) getDataList(record, j);
-            point->x *= scaleFactor;
-            point->y *= scaleFactor;
-            point->z *= scaleFactor;
-        }
-    }
+    traversePointMatrix(appData, scaleShapeCallback, &scaleFactor);
 }
 
 void moveShape(AppData* appData, const char* axis, float moveFactor)
@@ -260,22 +327,8 @@ void moveShape(AppData* appData, const char* axis, float moveFactor)
     if (!appData->pointMatrix) {
         return;
     }
-
-    int size = sizeList(appData->pointMatrix);
-    for (int i = 0; i < size; ++i) {
-        List* record = (List*) getDataList(appData->pointMatrix, i);
-        int recordSize = sizeList(record);
-        for (int j = 0; j < recordSize; ++j) {
-            Point* point = (Point*) getDataList(record, j);
-            if (strcmp(axis, "X") == 0) {
-                point->x += moveFactor;
-            } else if (strcmp(axis, "Y") == 0) {
-                point->y += moveFactor;
-            } else {
-                point->z += moveFactor;
-            }
-        }
-    }
+    Params params = {.axis = axis, .factor = moveFactor};
+    traversePointMatrix(appData, moveShapeCallback, &params);
 }
 
 void rotateShape(AppData* appData, const char* axis, float rotateFactor)
@@ -285,29 +338,8 @@ void rotateShape(AppData* appData, const char* axis, float rotateFactor)
     if (!appData->pointMatrix) {
         return;
     }
-
-    int size = sizeList(appData->pointMatrix);
-    for (int i = 0; i < size; ++i) {
-        List* record = (List*) getDataList(appData->pointMatrix, i);
-        int recordSize = sizeList(record);
-        for (int j = 0; j < recordSize; ++j) {
-            Point* point = (Point*) getDataList(record, j);
-            float angle = rotateFactor / 10;
-            if (strcmp(axis, "X") == 0) {
-                float savedY = point->y;
-                point->y = savedY * cos(angle) - point->z * sin(angle);
-                point->z = savedY * sin(angle) + point->z * cos(angle);
-            } else if (strcmp(axis, "Y") == 0) {
-                float savedX = point->x;
-                point->x = savedX * cos(angle) + point->z * sin(angle);
-                point->z = -savedX * sin(angle) + point->z * cos(angle);
-            } else {
-                float savedX = point->x;
-                point->x = savedX * cos(angle) - point->y * sin(angle);
-                point->y = savedX * sin(angle) + point->y * cos(angle);
-            }
-        }
-    }
+    Params params = {.axis = axis, .factor = rotateFactor};
+    traversePointMatrix(appData, rotateShapeCallback, &params);
 }
 
 void normalizeShape(AppData* appData, const char* fromNormalization, const char* toNormalization)
@@ -319,6 +351,11 @@ void normalizeShape(AppData* appData, const char* fromNormalization, const char*
     assignString(&appData->normalizeFrom, fromNormalization);
     assignString(&appData->normalizeTo, toNormalization);
 
+    // No normalization needed
+    if (strcmp(fromNormalization, "") == 0 && strcmp(toNormalization, "") == 0) {
+        return;
+    }
+
     float from;
     float to;
     if (!strToFloat(fromNormalization, &from) || !strToFloat(toNormalization, &to) || from >= to) {
@@ -326,15 +363,6 @@ void normalizeShape(AppData* appData, const char* fromNormalization, const char*
         return;
     }
 
-    int size = sizeList(appData->pointMatrix);
-    for (int i = 0; i < size; ++i) {
-        List* record = (List*) getDataList(appData->pointMatrix, i);
-        int recordSize = sizeList(record);
-        for (int j = 0; j < recordSize; ++j) {
-            Point* point = (Point*) getDataList(record, j);
-            point->x = normalizeValue(appData, "X", point->x, from, to);
-            point->y = normalizeValue(appData, "Y", point->y, from, to);
-            point->z = normalizeValue(appData, "Z", point->z, from, to);
-        }
-    }
+    Params params = {.from = from, .to = to, .appData = appData};
+    traversePointMatrix(appData, normalizeShapeCallback, &params);
 }
